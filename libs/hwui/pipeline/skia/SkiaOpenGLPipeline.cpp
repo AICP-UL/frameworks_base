@@ -53,11 +53,9 @@ SkiaOpenGLPipeline::~SkiaOpenGLPipeline() {
 }
 
 MakeCurrentResult SkiaOpenGLPipeline::makeCurrent() {
-    // In case the surface was destroyed (e.g. a previous trimMemory call) we
-    // need to recreate it here.
-    if (!isSurfaceReady() && mNativeWindow) {
-        setSurface(mNativeWindow.get(), mSwapBehavior);
-    }
+
+    // TODO: Figure out why this workaround is needed, see b/13913604
+    // In the meantime this matches the behavior of GLRenderer, so it is not a regression
 
     EGLint error = 0;
     if (!mEglManager.makeCurrent(mEglSurface, &error)) {
@@ -170,9 +168,6 @@ void SkiaOpenGLPipeline::onStop() {
 }
 
 bool SkiaOpenGLPipeline::setSurface(ANativeWindow* surface, SwapBehavior swapBehavior) {
-    mNativeWindow = surface;
-    mSwapBehavior = swapBehavior;
-
     if (mEglSurface != EGL_NO_SURFACE) {
         mEglManager.destroySurface(mEglSurface);
         mEglSurface = EGL_NO_SURFACE;
@@ -189,8 +184,7 @@ bool SkiaOpenGLPipeline::setSurface(ANativeWindow* surface, SwapBehavior swapBeh
 
     if (mEglSurface != EGL_NO_SURFACE) {
         const bool preserveBuffer = (swapBehavior != SwapBehavior::kSwap_discardBuffer);
-        const bool isPreserved = mEglManager.setPreserveBuffer(mEglSurface, preserveBuffer);
-        ALOGE_IF(preserveBuffer != isPreserved, "Unable to match the desired swap behavior.");
+        mBufferPreserved = mEglManager.setPreserveBuffer(mEglSurface, preserveBuffer);
         return true;
     }
 
