@@ -3373,17 +3373,32 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
             if (mProximitySensorEnabled) {
                 final long time = SystemClock.uptimeMillis();
                 final float distance = event.values[0];
-                boolean positive = distance >= 0.0f && distance < mProximityThreshold;
+    
+                /*
+                 * LG G4 / Avago proximity is effectively binary:
+                 *   near ~= 0.0
+                 *   far  ~= ~5.0
+                 *
+                 * FAR is sometimes reported slightly below 5.0
+                 * (for example 4.997635), which causes the default
+                 * "distance < mProximityThreshold" logic to classify
+                 * FAR as NEAR when mProximityThreshold is 5.0.
+                 *
+                 * Use a lower effective threshold so only true near
+                 * readings are treated as positive.
+                 */
+                final float effectiveThreshold = Math.min(1.0f, mProximityThreshold);
+                final boolean positive = distance >= 0.0f && distance < effectiveThreshold;
+    
                 handleProximitySensorEvent(time, positive);
             }
         }
-
+    
         @Override
         public void onAccuracyChanged(Sensor sensor, int accuracy) {
             // Not used.
         }
     };
-
 
     private final class SettingsObserver extends ContentObserver {
         public SettingsObserver(Handler handler) {
